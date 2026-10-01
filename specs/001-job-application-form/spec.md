@@ -17,13 +17,33 @@ file upload, multi-step wizard, server email, search."
 `design/Job Application Mobile.dc.html` (small screens). The design is the source of truth for
 layout, copy and visual treatment. This spec defines behaviour only.
 
+## Clarifications
+
+### Session 2026-10-01
+
+- Q: The design has a required CV field, but CV upload is a non-goal. What should the form do with
+  it? → A: **Option B, the recommended default. It was not explicitly confirmed (the question was
+  skipped) and is the one decision to overturn if wrong.** Keep the field as designed and required.
+  The candidate picks a PDF, DOC or DOCX file of 10MB or less. Only its name, size and type are
+  saved, and the file contents never leave the device.
+- Q: What does "Start again" do to a saved application? → A: It keeps it. Saved applications
+  accumulate (one list per browser), and "Start again" returns to an empty form so another
+  application can be sent. This was derived from the plan input, which stores applications in a
+  list.
+- Q: Where does the confirmation appear, and what does a reload show? → A: The confirmation has its
+  own page address, separate from the form. Reloading the confirmation page shows the most recently
+  saved application. Opening the confirmation address with nothing saved goes to the form. The form
+  page always opens with an empty form. Derived from the plan input.
+- Q: Should a phone number be collected (it appears in the plan's draft data shape)? → A: No. The
+  design's form has no phone field, so reconciling with the page drops it.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Apply for the advertised role (Priority: P1)
 
 A candidate reading the "Senior .NET Engineer (Remote, UK)" role at Northgate Labs fills in their
-full name, email and an optional cover note, sends the application, and sees a confirmation that
-it has been received.
+full name and email, chooses their CV file, optionally adds a cover note, sends the application,
+and sees a confirmation that it has been received.
 
 **Why this priority**: Submitting an application is the whole point of the screen. Without it,
 the page is just a job advert.
@@ -47,6 +67,11 @@ confirm that the confirmation state appears and the application is stored.
 4. **Given** a cover note is being typed, **When** its length changes, **Then** the counter shows
    "N / 500 characters" (or "Up to 500 characters." when empty), and input beyond 500 characters
    is not accepted.
+5. **Given** the CV field is empty, **When** the candidate chooses a file or drags one onto the
+   field, **Then** the drop area is replaced by the file's name and size (e.g. "412 KB" or
+   "1.2 MB") with a "Remove" action, and while a file is dragged over the field it is highlighted.
+6. **Given** a CV file is shown, **When** the candidate selects "Remove", **Then** the field returns
+   to its empty "Choose a file" state.
 
 ---
 
@@ -72,8 +97,8 @@ summary and the inline messages, then correct the fields one at a time and watch
    "Check the highlighted fields below."
 3. **Given** the validating state, **When** the candidate looks at an invalid field, **Then** that
    field is highlighted as in error and its hint is replaced by the specific message: "Enter your
-   name." for full name, "Enter your email address." for an empty email, or "Add a domain, like
-   name@company.com." for a malformed email.
+   name." for full name, "Enter your email address." for an empty email, "Add a domain, like
+   name@company.com." for a malformed email, or "Attach your CV to apply." when no CV is chosen.
 4. **Given** the validating state, **When** the candidate corrects a field, **Then** that field's
    error clears as they type, and the summary updates its wording or disappears once no errors
    remain.
@@ -122,14 +147,16 @@ application is still there and the page reflects it.
 
 **Acceptance Scenarios**:
 
-1. **Given** an application has been sent for this role, **When** the page is reloaded, **Then**
-   the confirmation card is shown again, with the same candidate first name taken from the saved
-   application.
-2. **Given** the confirmation card, **When** the candidate selects "Start again", **Then**
-   [NEEDS CLARIFICATION: Q2 — does "Start again" only clear the form (the saved application is
-   kept, and a second application can be sent), or does it withdraw/replace the saved one?]
-3. **Given** no application has been sent, **When** the page is reloaded, **Then** the form is
-   shown in the default state.
+1. **Given** an application has been sent and the confirmation is showing, **When** the page is
+   reloaded, **Then** the confirmation card is shown again, with the candidate's first name and
+   email taken from the most recently saved application.
+2. **Given** the confirmation card, **When** the candidate selects "Start again", **Then** they
+   return to an empty form in the default state, and every previously saved application is still
+   saved.
+3. **Given** no application has been saved, **When** the candidate opens the confirmation address
+   directly, **Then** they are taken to the form in the default state.
+4. **Given** the form page, **When** it is reloaded, **Then** the form opens in the default state.
+   Unsent input isn't kept.
 
 ---
 
@@ -141,6 +168,12 @@ application is still there and the page reflects it.
   moment) so the transition to confirmation doesn't feel like a glitch.
 - **Pasted cover note over 500 characters**: it is cut off at 500 characters, and the counter shows
   "500 / 500 characters".
+- **Wrong CV file type** (anything other than PDF, DOC or DOCX): the file is not accepted, and the
+  field shows "Choose a PDF, DOC or DOCX file." straight away, even before the first attempt to
+  send.
+- **CV over 10MB**: the file is not accepted, and the field shows "That file is over 10MB. Try a
+  smaller version." straight away.
+- **Several files dropped at once**: only the first is considered.
 - **Leading or trailing spaces** in name and email are trimmed before validation and saving.
 - **Email format**: the address must have text before an "@", a domain, and a dot within the
   domain (e.g. `name@company.com`). Addresses containing spaces are invalid.
@@ -164,10 +197,12 @@ application is still there and the page reflects it.
   and team ("Northgate Labs · Platform"), title, summary line, salary, location, contract, team
   size, closing date, hiring manager (Dana Kowalski), and the full role description sections.
 - **FR-002**: The application form MUST contain, in this order: Full name (required), Email
-  (required), [NEEDS CLARIFICATION: Q1 — CV field], Cover note (optional, at most 500 characters),
+  (required), CV (required, PDF/DOC/DOCX of 10MB or less, chosen or dragged in, with only the file
+  name, size and type kept), Cover note (optional, at most 500 characters),
   and a "Send application" action with the privacy note beneath it.
 - **FR-003**: Each field MUST show its hint text from the design in the default state ("As it
-  appears on your CV.", "We'll only use this about your application.", "Up to 500 characters.").
+  appears on your CV.", "We'll only use this about your application.", "PDF, DOC or DOCX, up to
+  10MB.", "Up to 500 characters.").
 - **FR-004**: All copy MUST be the real copy from the design. Placeholder text MUST NOT appear.
   Copy that would be untrue for this feature MUST be adjusted (see FR-019).
 
@@ -176,6 +211,8 @@ application is still there and the page reflects it.
   "Enter your name."
 - **FR-006**: Email is required ("Enter your email address.") and MUST be a valid format ("Add a
   domain, like name@company.com.").
+- **FR-006a**: A CV is required ("Attach your CV to apply."). Files that aren't PDF, DOC or DOCX,
+  or that are over 10MB, MUST be rejected when chosen, with the messages given under Edge Cases.
 - **FR-007**: Validation MUST first run when the candidate tries to send. Before that first
   attempt, no error messages are shown.
 - **FR-008**: After a failed attempt, validation MUST re-run as the candidate edits any field, and
@@ -201,9 +238,11 @@ application is still there and the page reflects it.
   action.
 - **FR-015**: A saved application MUST still be there after a page reload or after the browser
   is closed and reopened on the same device and browser.
-- **FR-016**: When a saved application exists for this role, loading the page MUST show the
-  confirmation card instead of an empty form (User Story 4).
-- **FR-017**: "Start again" behaviour: see User Story 4, scenario 2 (pending Q2).
+- **FR-016**: The confirmation MUST have its own page address. Loading it MUST show the
+  confirmation for the most recently saved application. Loading it with no saved application MUST
+  redirect to the form (User Story 4).
+- **FR-017**: "Start again" MUST return to an empty form without removing any saved application.
+  Saved applications accumulate, and each successful send adds one.
 
 **Error / retry**
 - **FR-018**: If saving fails, the screen MUST enter an error state with a visible, plain-language
@@ -223,9 +262,10 @@ application is still there and the page reflects it.
   identifier, company, team, title, summary, salary range, location, contract type, team size,
   closing date, hiring manager (name, role), and description sections. Read-only content.
 - **Application**: one candidate's submission for a role. Attributes: an identifier, role
-  identifier, full name (trimmed), email (trimmed), cover note (optional, 0–500 characters),
-  [Q1: CV reference, if any], and the date and time it was submitted. It is created once per
-  successful submit and kept on the candidate's device.
+  identifier, role title, full name (trimmed), email (trimmed), cover note (optional, 0–500
+  characters), CV details (file name, size, type; never the file contents), and the date and time
+  it was submitted. It is created once per successful submit and kept on the candidate's device.
+  No phone number is collected.
 - **Form state**: exactly one of default, validating, submitting, success or error at any time,
   plus the current field values and any field errors.
 
